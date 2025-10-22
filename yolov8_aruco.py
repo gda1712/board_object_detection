@@ -75,44 +75,36 @@ def detect_workspace(frame):
 
 def calculate_workspace_dimensions(workspace_corners):
     """
-    Calcula las dimensiones del workspace en píxeles basado en los marcadores ArUco.
-    Retorna (width_px, height_px) en píxeles.
+    Calculate workspace dimensions in pixels based on ArUco markers.
+    Returns (width_px, height_px) in pixels.
     """
-    # Ordenar las esquinas: [top_left, top_right, bottom_right, bottom_left]
-    # workspace_corners ya está ordenado según ARUCO_IDS
-    
-    # Calcular ancho (distancia entre esquinas izquierda y derecha)
-    left_width = np.linalg.norm(workspace_corners[0] - workspace_corners[3])  # top_left - bottom_left
-    right_width = np.linalg.norm(workspace_corners[1] - workspace_corners[2])  # top_right - bottom_right
+    # Calculate width (distance between left and right corners)
+    left_width = np.linalg.norm(workspace_corners[0] - workspace_corners[3])
+    right_width = np.linalg.norm(workspace_corners[1] - workspace_corners[2])
     avg_width = (left_width + right_width) / 2
     
-    # Calcular alto (distancia entre esquinas superior e inferior)
-    top_height = np.linalg.norm(workspace_corners[1] - workspace_corners[0])  # top_right - top_left
-    bottom_height = np.linalg.norm(workspace_corners[2] - workspace_corners[3])  # bottom_right - bottom_left
+    # Calculate height (distance between top and bottom corners)
+    top_height = np.linalg.norm(workspace_corners[1] - workspace_corners[0])
+    bottom_height = np.linalg.norm(workspace_corners[2] - workspace_corners[3])
     avg_height = (top_height + bottom_height) / 2
     
     return avg_width, avg_height
 
 def pixel_to_cm_coordinates(pixel_x, pixel_y, workspace_corners):
     """
-    Convierte coordenadas de píxeles a centímetros dentro del workspace.
-    Retorna (x_cm, y_cm) en centímetros.
+    Convert pixel coordinates to centimeters within the workspace.
+    Returns (x_cm, y_cm) in centimeters.
     """
-    # Calcular dimensiones del workspace en píxeles
     width_px, height_px = calculate_workspace_dimensions(workspace_corners)
     
-    # Calcular factores de conversión
     px_to_cm_x = WORKSPACE_WIDTH_CM / width_px
     px_to_cm_y = WORKSPACE_HEIGHT_CM / height_px
     
-    # Obtener la esquina superior izquierda del workspace
-    top_left = workspace_corners[0]  # Esquina superior izquierda
+    top_left = workspace_corners[0]
     
-    # Calcular offset desde la esquina superior izquierda
     offset_x = pixel_x - top_left[0]
     offset_y = pixel_y - top_left[1]
     
-    # Convertir a centímetros
     x_cm = offset_x * px_to_cm_x
     y_cm = offset_y * px_to_cm_y
     
@@ -141,20 +133,16 @@ def main():
                 print(f"Error getting image: {e}")
                 continue
             
-            # --- WORKSPACE DETECTION ---
             workspace_corners = detect_workspace(frame)
 
-            # --- OBJECT DETECTION AND FILTERING ---
             if workspace_corners is not None:
-                # Dibujar el workspace
                 cv2.polylines(frame, [workspace_corners.astype(int)], True, (255, 0, 0), 2)
                 
-                # Calcular dimensiones del workspace para mostrar en pantalla
                 width_px, height_px = calculate_workspace_dimensions(workspace_corners)
-                print(f"Workspace detectado: {width_px:.1f}px x {height_px:.1f}px")
+                print(f"Workspace detected: {width_px:.1f}px x {height_px:.1f}px")
 
                 results = model(frame, conf=conf_threshold, device=device)
-                detected_objects = []  # Lista para almacenar objetos detectados
+                detected_objects = []
                 
                 for r in results:
                     for box in r.boxes:
@@ -167,10 +155,8 @@ def main():
                         if cv2.pointPolygonTest(workspace_corners, (center_x, center_y), False) > 0:
                             class_name = class_names.get(class_id, f"Class_{class_id}")
                             
-                            # Convertir coordenadas a centímetros
                             x_cm, y_cm = pixel_to_cm_coordinates(center_x, center_y, workspace_corners)
                             
-                            # Almacenar información del objeto
                             obj_info = {
                                 'class': class_name,
                                 'confidence': confidence,
@@ -179,27 +165,23 @@ def main():
                             }
                             detected_objects.append(obj_info)
                             
-                            # Dibujar rectángulo y etiquetas
                             label = f'{class_name}: {confidence:.2f}'
                             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                             
-                            # Mostrar coordenadas en centímetros en pantalla
                             coord_label = f"({x_cm:.1f}cm, {y_cm:.1f}cm)"
                             cv2.putText(frame, coord_label, (center_x + 15, center_y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
                 
-                # Imprimir información de objetos detectados en consola
                 if detected_objects:
-                    print(f"\n=== OBJETOS DETECTADOS ({len(detected_objects)}) ===")
+                    print(f"\n=== DETECTED OBJECTS ({len(detected_objects)}) ===")
                     for i, obj in enumerate(detected_objects, 1):
                         print(f"{i}. {obj['class']} (conf: {obj['confidence']:.2f})")
-                        print(f"   Coordenadas píxeles: ({obj['pixel_coords'][0]}, {obj['pixel_coords'][1]})")
-                        print(f"   Coordenadas reales: ({obj['cm_coords'][0]:.2f}cm, {obj['cm_coords'][1]:.2f}cm)")
+                        print(f"   Pixel coordinates: ({obj['pixel_coords'][0]}, {obj['pixel_coords'][1]})")
+                        print(f"   Real coordinates: ({obj['cm_coords'][0]:.2f}cm, {obj['cm_coords'][1]:.2f}cm)")
                         print()
                 else:
-                    print("No se detectaron objetos dentro del workspace")
+                    print("No objects detected within workspace")
 
-            # --- DISPLAY PREPARATION ---
             screen_width = 640
             screen_height = 640
             
