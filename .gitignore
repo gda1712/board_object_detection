@@ -1,1 +1,5 @@
 *.pt
+chess_train/dataset
+chess_train/models
+black/dataset
+black/models
